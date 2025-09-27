@@ -2,6 +2,19 @@ _# XTTS Modal Server
 
 A serverless deployment of XTTS (Coqui TTS) v2 on Modal Labs platform with public API endpoints for text-to-speech synthesis.
 
+## 🎉 **LIVE DEPLOYMENT STATUS: FULLY OPERATIONAL**
+
+**Working Endpoints (Deployed & Tested):**
+- **Health Check**: https://ahmedezzat0247--xtts-server-fixed-xttsservice-healthz.modal.run
+- **Service Info**: https://ahmedezzat0247--xtts-server-fixed-xttsservice-root.modal.run  
+- **Register Speaker**: https://ahmedezzat0247--xtts-server-fixed-xttsservice-register-speaker.modal.run
+- **Text-to-Speech**: https://ahmedezzat0247--xtts-server-fixed-xttsservice-tts.modal.run
+
+✅ **Model**: Kuwaiti XTTS Latest (5.6GB) - Successfully loaded  
+✅ **Languages**: Arabic & English synthesis confirmed  
+✅ **Testing**: All endpoints verified and working  
+✅ **Performance**: ~2-12 seconds per request (warm containers)
+
 ## Overview
 
 This project transforms the original XTTS-Server into a Modal-compatible, serverless application that provides:
@@ -51,9 +64,9 @@ This project transforms the original XTTS-Server into a Modal-compatible, server
    python setup_volumes.py Genarabia-ai/Kuwaiti_XTTS_Latest my_secret_api_key
    ```
 
-3. **Deploy to Modal**:
+3. **Deploy to Modal** (Use the fixed version):
    ```bash
-   modal deploy modal_xtts_server.py
+   modal deploy modal_xtts_server_fixed.py
    ```
 
 4. **Get your endpoint URL** from the Modal dashboard or deployment output.
@@ -196,12 +209,48 @@ curl -X POST "https://your-modal-url/tts" \
   --output output.wav
 ```
 
+## ✅ Verified Testing Examples
+
+### Test Arabic TTS (Verified Working)
+```bash
+curl -X POST "https://ahmedezzat0247--xtts-server-fixed-xttsservice-tts.modal.run" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "مرحبا، هذا اختبار لنموذج الكويتي للتحويل من النص إلى الكلام",
+    "language": "ar",
+    "speaker_id": "85f343e9362c0bbf",
+    "temperature": 0.75
+  }' \
+  --output arabic_speech.wav
+```
+
+### Test English TTS (Verified Working)
+```bash
+curl -X POST "https://ahmedezzat0247--xtts-server-fixed-xttsservice-tts.modal.run" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hello, this is a test of the Kuwaiti XTTS model",
+    "language": "en",
+    "speaker_id": "85f343e9362c0bbf",
+    "return_base64": true
+  }'
+```
+
+### Register Speaker (Verified Working)
+```bash
+curl -X POST "https://ahmedezzat0247--xtts-server-fixed-xttsservice-register-speaker.modal.run" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "speaker_wav_url": "https://upload.wikimedia.org/wikipedia/commons/1/18/Allah_Wish.wav"
+  }'
+```
+
 ## Development
 
 ### Local Testing
 ```bash
 # Serve locally for development
-modal serve modal_xtts_server.py
+modal serve modal_xtts_server_fixed.py
 
 # Run tests against deployed server
 python test_modal_server.py https://your-modal-url your_api_key test_audio.wav
@@ -210,11 +259,16 @@ python test_modal_server.py https://your-modal-url your_api_key test_audio.wav
 ### File Structure
 ```
 xtts-modal-server/
-├── modal_xtts_server.py    # Main Modal application
-├── setup_volumes.py        # Script to download and upload model files
-├── test_modal_server.py    # Test suite for the API
-├── requirements.txt        # Python dependencies
-└── README.md              # This file
+├── modal_xtts_server.py           # Original Modal application
+├── modal_xtts_server_direct.py    # Direct HF download version
+├── modal_xtts_server_fixed.py     # Fixed version (RECOMMENDED)
+├── setup_volumes.py               # Script to download and upload model files
+├── test_modal_server.py           # Test suite for the API
+├── requirements.txt               # Python dependencies
+├── deployment_summary.md          # Deployment and testing summary
+├── .gitignore                     # Git ignore rules
+├── LICENSE                        # MIT License
+└── README.md                      # This file
 ```
 
 ## Configuration
@@ -246,19 +300,24 @@ Set these in Modal Secrets or environment:
 
 ### Common Issues
 
-1. **Model not found error**:
+1. **"'GPT2InferenceModel' object has no attribute 'generate'" Error**:
+   - **SOLUTION**: Use `modal_xtts_server_fixed.py` which pins transformers to `<4.50`
+   - This is a known compatibility issue with transformers v4.50+
+   - The fixed version resolves this by using compatible library versions
+
+2. **Model not found error**:
    - Ensure model files are downloaded and uploaded to the `xtts-model` volume using `setup_volumes.py`
    - Check file names: `config.json`, `model.pth`, `vocab.json`
 
-2. **GPU memory errors**:
+3. **GPU memory errors**:
    - Try reducing concurrency or using a larger GPU
    - Check model size compatibility
 
-3. **Authentication errors**:
+4. **Authentication errors**:
    - Verify API key is set correctly in Modal Secrets
    - Check `x-api-key` header in requests
 
-4. **Audio processing errors**:
+5. **Audio processing errors**:
    - Ensure audio files are valid WAV/MP3 format
    - Check audio file accessibility (URLs)
 
