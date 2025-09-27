@@ -6,39 +6,37 @@ import os
 from typing import Optional
 
 import modal
-import soundfile as sf
-import torch
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, HttpUrl
 
-# Define the Modal image with all required dependencies
+# Define the Modal image with all required dependencies and compatible versions
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
     "fastapi[standard]>=0.110,<1.0",
     "soundfile>=0.12.1",
     "TTS>=0.22.0",
     "pydantic<3",
-    "transformers>=4.44.2",
+    "transformers>=4.44.2,<4.50",  # Use compatible transformers version
     "torch",
     "torchaudio",
     "httpx",
     "numpy",
+    "huggingface_hub",
 )
 
 # Create the Modal app
-app = modal.App("xtts-server", image=image)
+app = modal.App("xtts-server-fixed", image=image)
 
-# Define volumes for persistent storage
-model_volume = modal.Volume.from_name("xtts-model", create_if_missing=True)
+# Define volume for persistent speaker storage
 speaker_volume = modal.Volume.from_name("xtts-speakers", create_if_missing=True)
-
-# No API key authentication required
-api_secret = None
 
 # Import TTS modules within the image context
 with image.imports():
+    import soundfile as sf
+    import torch
     from TTS.tts.configs.xtts_config import XttsConfig
     from TTS.tts.models.xtts import Xtts
+    from huggingface_hub import hf_hub_download
 
 
 # Pydantic models for request/response
@@ -67,12 +65,11 @@ class TTSRequest(BaseModel):
 @app.cls(
     gpu="a10g",
     volumes={
-        "/model": model_volume,
         "/speakers": speaker_volume
     },
-    secrets=[api_secret] if api_secret else [],
     scaledown_window=60 * 5,  # Keep containers alive for 5 minutes
     enable_memory_snapshot=True,  # Enable memory snapshots for faster cold boots
+    timeout=1800,  # 30 minutes timeout for model loading
 )
 @modal.concurrent(max_inputs=10)  # Allow up to 10 concurrent requests per container
 class XTTSService:
@@ -80,40 +77,64 @@ class XTTSService:
     @modal.enter()
     def load_model(self):
         """Load the XTTS model when the container starts"""
-        print("Loading XTTS model...")
+        print("Loading XTTS model from Hugging Face...")
         
-        # Check if model files exist
-        config_path = "/model/config.json"
-        vocab_path = "/model/vocab.json"
-        ckpt_path = "/model/model.pth"
+        # Model repository ID
+        model_repo_id = "Genarabia-ai/Kuwaiti_XTTS_Latest"
         
-        if not os.path.exists(ckpt_path):
-            raise RuntimeError(f"Model checkpoint not found at {ckpt_path}. Please upload your model files to the xtts-model volume.")
+        # Create a temporary directory for model files
+        model_dir = "/tmp/xtts_model"
+        os.makedirs(model_dir, exist_ok=True)
         
-        # Load model configuration
-        config = XttsConfig()
-        config.load_json(config_path)
-        
-        # Initialize and load the model
-        model = Xtts.init_from_config(config)
-        model.load_checkpoint(
-            config,
-            checkpoint_dir="/model",
-            vocab_path=vocab_path,
-            use_deepspeed=False,
-        )
-        
-        # Move model to GPU
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model.to(device)
-        model.eval()
-        
-        # Store in instance variables
-        self.model = model
-        self.config = config
-        self.device = device
-        
-        print(f"XTTS model loaded successfully on {device}")
+        try:
+            # Download model files from Hugging Face
+            print("Downloading config.json...")
+            config_path = hf_hub_download(repo_id=model_repo_id, filename="config.json", cache_dir=model_dir)
+            
+            print("Downloading model.pth...")
+            ckpt_path = hf_hub_download(repo_id=model_repo_id, filename="model.pth", cache_dir=model_dir)
+            
+            print("Downloading vocab.json...")
+            try:
+                vocab_path = hf_hub_download(repo_id=model_repo_id, filename="vocab.json", cache_dir=model_dir)
+            except:
+                print("vocab.json not found, using default")
+                vocab_path = None
+            
+            print("Model files downloaded successfully!")
+            
+            # Load model configuration
+            config = XttsConfig()
+            config.load_json(config_path)
+            
+            # Initialize and load the model
+            model = Xtts.init_from_config(config)
+            
+            # Get the actual directory containing the model files
+            model_files_dir = os.path.dirname(ckpt_path)
+            
+            model.load_checkpoint(
+                config,
+                checkpoint_dir=model_files_dir,
+                vocab_path=vocab_path,
+                use_deepspeed=False,
+            )
+            
+            # Move model to GPU
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            model.to(device)
+            model.eval()
+            
+            # Store in instance variables
+            self.model = model
+            self.config = config
+            self.device = device
+            
+            print(f"XTTS model loaded successfully on {device}")
+            
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            raise e
     
     def _require_api_key(self, x_api_key: Optional[str] = None):
         """API key authentication disabled"""
@@ -184,9 +205,11 @@ class XTTSService:
         """Root endpoint with API information"""
         return {
             "status": "ok",
-            "service": "XTTS v2 Inference API on Modal",
+            "service": "XTTS v2 Inference API on Modal (Fixed Version)",
+            "model": "Genarabia-ai/Kuwaiti_XTTS_Latest",
             "endpoints": ["/healthz", "/tts", "/register_speaker"],
             "note": "Use /tts (POST) for synthesis. Use /register_speaker (POST) to register speakers.",
+            "version": "fixed-transformers-compatibility"
         }
     
     @modal.fastapi_endpoint(method="GET")
@@ -295,11 +318,11 @@ class XTTSService:
 @modal.fastapi_endpoint(method="GET")
 def simple_health():
     """Simple health check for testing"""
-    return {"status": "ok", "message": "XTTS Modal server is running"}
+    return {"status": "ok", "message": "XTTS Modal server (Fixed Version) is running"}
 
 
 if __name__ == "__main__":
     # This allows running the script locally for testing
-    print("XTTS Modal server ready for deployment!")
-    print("Deploy with: modal deploy modal_xtts_server.py")
-    print("Serve locally with: modal serve modal_xtts_server.py")
+    print("XTTS Modal server (Fixed Version) ready for deployment!")
+    print("Deploy with: modal deploy modal_xtts_server_fixed.py")
+    print("Serve locally with: modal serve modal_xtts_server_fixed.py")

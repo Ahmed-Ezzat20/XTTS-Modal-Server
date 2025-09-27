@@ -8,3 +8,5 @@ torch
 torchaudio
 httpx
 numpy
+
+huggingface_hub
