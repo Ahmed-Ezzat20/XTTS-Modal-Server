@@ -83,3 +83,29 @@ speakers/
 
 # Modal
 .modal_cache/
+
+# Archive directory (development versions)
+archive/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Audio test files
+*.wav
+
+# Temporary files
+*.tmp
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

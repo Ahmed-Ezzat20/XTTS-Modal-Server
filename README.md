@@ -249,14 +249,15 @@ modal deploy modal_xtts_server_production.py
 ### Project Structure
 ```
 XTTS-Modal-Server/
-├── modal_xtts_server_production.py     # Production deployment
-├── modal_xtts_server_conservative_optimized.py  # Performance-optimized version
-├── setup_volumes.py                    # Model setup script
-├── test_modal_server.py               # Testing utilities
+├── README.md                           # Complete usage guide and documentation
+├── LICENSE                             # MIT License
+├── .gitignore                         # Git ignore rules
+├── PROJECT_STRUCTURE.md               # Repository organization guide
+├── modal_xtts_server_production.py    # 🚀 MAIN PRODUCTION FILE
+├── setup_volumes.py                   # Model setup and volume initialization
+├── test_modal_server.py               # Testing utilities and examples
 ├── requirements.txt                   # Python dependencies
-├── README.md                          # This file
-├── LICENSE                           # MIT License
-└── .gitignore                        # Git ignore rules
+└── deployment_summary.md              # Deployment and performance analysis
 ```
 
 ## 📊 Performance Analysis
