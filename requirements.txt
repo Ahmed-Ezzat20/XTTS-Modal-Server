@@ -1,0 +1,10 @@
+modal>=0.73.82
+fastapi[standard]>=0.110,<1.0
+soundfile>=0.12.1
+TTS>=0.22.0
+pydantic<3
+transformers>=4.44.2
+torch
+torchaudio
+httpx
+numpy
