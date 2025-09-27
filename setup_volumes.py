@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Setup script for XTTS Modal deployment.
-This script helps upload your XTTS model files to the Modal volume.
+This script helps download your XTTS model files from Hugging Face and upload them to the Modal volume.
 """
 
 import os
@@ -9,45 +9,33 @@ import sys
 from pathlib import Path
 
 import modal
+from huggingface_hub import hf_hub_download
 
-def upload_model_files(model_dir: str):
-    """Upload XTTS model files to the Modal volume"""
-    model_path = Path(model_dir)
-    
-    if not model_path.exists():
-        print(f"Error: Model directory {model_dir} does not exist")
-        return False
-    
-    # Check for required files
-    required_files = ["config.json", "model.pth"]
-    optional_files = ["vocab.json"]
-    
-    missing_files = []
-    for file in required_files:
-        if not (model_path / file).exists():
-            missing_files.append(file)
-    
-    if missing_files:
-        print(f"Error: Missing required files: {missing_files}")
-        return False
-    
-    print(f"Uploading model files from {model_dir} to Modal volume...")
-    
+def download_model_from_hf(model_repo_id: str):
+    """Download XTTS model files from Hugging Face Hub to the Modal volume"""
+    print(f"Downloading model files from {model_repo_id} to Modal volume...")
+
     # Get or create the model volume
     model_volume = modal.Volume.from_name("xtts-model", create_if_missing=True)
-    
-    # Upload files
-    with model_volume.batch_upload() as batch:
-        for file in required_files + optional_files:
-            file_path = model_path / file
-            if file_path.exists():
-                print(f"  Uploading {file}...")
-                batch.put_file(str(file_path), f"/{file}")
-            else:
-                print(f"  Skipping {file} (not found)")
-    
-    print("Model files uploaded successfully!")
-    return True
+
+    # List of files to download
+    files_to_download = ["config.json", "model.pth", "vocab.json"]
+
+    try:
+        # Download and upload files in a batch
+        with model_volume.batch_upload() as batch:
+            for filename in files_to_download:
+                print(f"  Downloading {filename}...")
+                # Download file from Hugging Face Hub
+                downloaded_path = hf_hub_download(repo_id=model_repo_id, filename=filename)
+                # Upload to Modal Volume
+                batch.put_file(downloaded_path, f"/{filename}")
+        
+        print("Model files downloaded and uploaded successfully!")
+        return True
+    except Exception as e:
+        print(f"Error during model download/upload: {e}")
+        return False
 
 def create_api_secret(api_key: str):
     """Create a Modal secret for the API key"""
@@ -64,18 +52,18 @@ def create_api_secret(api_key: str):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python setup_volumes.py <model_directory> [api_key]")
-        print("Example: python setup_volumes.py ./my_xtts_model my_secret_key")
+        print("Usage: python setup_volumes.py <hugging_face_model_id> [api_key]")
+        print("Example: python setup_volumes.py Genarabia-ai/Kuwaiti_XTTS_Latest my_secret_key")
         sys.exit(1)
     
-    model_dir = sys.argv[1]
+    model_repo_id = sys.argv[1]
     api_key = sys.argv[2] if len(sys.argv) > 2 else None
     
     print("XTTS Modal Setup")
-    print("================")
+    print("=================")
     
-    # Upload model files
-    if not upload_model_files(model_dir):
+    # Download model files from Hugging Face
+    if not download_model_from_hf(model_repo_id):
         sys.exit(1)
     
     # Create API secret if provided

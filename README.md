@@ -1,4 +1,4 @@
-# XTTS Modal Server
+_# XTTS Modal Server
 
 A serverless deployment of XTTS (Coqui TTS) v2 on Modal Labs platform with public API endpoints for text-to-speech synthesis.
 
@@ -32,7 +32,7 @@ This project transforms the original XTTS-Server into a Modal-compatible, server
    pip install modal
    modal setup
    ```
-3. **XTTS Model**: Fine-tuned XTTS v2 model files (`config.json`, `model.pth`, `vocab.json`)
+3. **Hugging Face Model**: A fine-tuned XTTS v2 model available on Hugging Face Hub (e.g., `Genarabia-ai/Kuwaiti_XTTS_Latest`).
 
 ### Installation
 
@@ -42,9 +42,13 @@ This project transforms the original XTTS-Server into a Modal-compatible, server
    cd xtts-modal-server
    ```
 
-2. **Upload your model files**:
+2. **Download and upload your model files from Hugging Face**:
    ```bash
-   python setup_volumes.py /path/to/your/xtts_model [optional_api_key]
+   python setup_volumes.py <hugging_face_model_id> [optional_api_key]
+   ```
+   For example:
+   ```bash
+   python setup_volumes.py Genarabia-ai/Kuwaiti_XTTS_Latest my_secret_api_key
    ```
 
 3. **Deploy to Modal**:
@@ -207,7 +211,7 @@ python test_modal_server.py https://your-modal-url your_api_key test_audio.wav
 ```
 xtts-modal-server/
 ├── modal_xtts_server.py    # Main Modal application
-├── setup_volumes.py        # Script to upload model files
+├── setup_volumes.py        # Script to download and upload model files
 ├── test_modal_server.py    # Test suite for the API
 ├── requirements.txt        # Python dependencies
 └── README.md              # This file
@@ -243,7 +247,7 @@ Set these in Modal Secrets or environment:
 ### Common Issues
 
 1. **Model not found error**:
-   - Ensure model files are uploaded to the `xtts-model` volume
+   - Ensure model files are downloaded and uploaded to the `xtts-model` volume using `setup_volumes.py`
    - Check file names: `config.json`, `model.pth`, `vocab.json`
 
 2. **GPU memory errors**:
@@ -272,7 +276,7 @@ Set these in Modal Secrets or environment:
 - **Deployment**: Modal instead of Docker/Vast.ai
 
 ### Migration Steps
-1. Export your fine-tuned model files
+1. Get your Hugging Face model repository ID
 2. Upload using `setup_volumes.py`
 3. Deploy the Modal application
 4. Update client code to use new endpoint URLs
@@ -301,3 +305,5 @@ For issues and questions:
 - Original XTTS-Server by [Nourahmed113](https://github.com/Nourahmed113/XTTS-Server)
 - Coqui TTS team for the XTTS model
 - Modal Labs for the serverless platform
+- Genarabia-ai for the Kuwaiti XTTS model
+
